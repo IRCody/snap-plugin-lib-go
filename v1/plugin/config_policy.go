@@ -26,47 +26,67 @@ import (
 )
 
 type ConfigPolicy struct {
-	IntegerRules map[string]integerRule
-	BoolRules    map[string]boolRule
-	StringRules  map[string]stringRule
-	FloatRules   map[string]floatRule
+	IntegerRules map[string]intRuleKey
+	BoolRules    map[string]boolRuleKey
+	StringRules  map[string]stringRuleKey
+	FloatRules   map[string]floatRuleKey
 }
 
 func NewConfigPolicy() *ConfigPolicy {
 	return &ConfigPolicy{
-		IntegerRules: map[string]integerRule{},
-		BoolRules:    map[string]boolRule{},
-		StringRules:  map[string]stringRule{},
-		FloatRules:   map[string]floatRule{},
+		IntegerRules: map[string]intRuleKey{},
+		BoolRules:    map[string]boolRuleKey{},
+		StringRules:  map[string]stringRuleKey{},
+		FloatRules:   map[string]floatRuleKey{},
 	}
+}
+
+type intRuleKey struct {
+	rule integerRule
+	key  []string
+}
+
+type boolRuleKey struct {
+	rule boolRule
+	key  []string
+}
+
+type floatRuleKey struct {
+	rule floatRule
+	key  []string
+}
+
+type stringRuleKey struct {
+	rule stringRule
+	key  []string
 }
 
 // AddIntRule adds a given integerRule to the IntegerRules map.
 // This will overwrite any existing entry.
 func (c *ConfigPolicy) AddIntRule(key []string, in integerRule) {
 	k := strings.Join(key, ".") // Method used on daemon side in ctree
-	c.IntegerRules[k] = in
+	c.IntegerRules[k] = intRuleKey{rule: in, key: key}
 }
 
 // AddBoolRule adds a given boolRule to the BoolRules map.
 // This will overwrite any existing entry.
 func (c *ConfigPolicy) AddBoolRule(key []string, in boolRule) {
 	k := strings.Join(key, ".") // Method used in daemon/ctree
-	c.BoolRules[k] = in
+	c.BoolRules[k] = boolRuleKey{rule: in, key: key}
 }
 
 // AddFloatRule adds a given floatRule to the FloatRules map.
 // This will overwrite any existing entry.
 func (c *ConfigPolicy) AddFloatRule(key []string, in floatRule) {
 	k := strings.Join(key, ".") // Method used in daemon/ctree
-	c.FloatRules[k] = in
+	c.FloatRules[k] = floatRuleKey{rule: in, key: key}
 }
 
 // AddStringRule adds a given stringRule to the StringRules map.
 // This will overwrite any existing entry.
 func (c *ConfigPolicy) AddStringRule(key []string, in stringRule) {
 	k := strings.Join(key, ".") // Method used in daemon/ctree
-	c.StringRules[k] = in
+	c.StringRules[k] = stringRuleKey{rule: in, key: key}
 }
 
 func newGetConfigPolicyReply(cfg ConfigPolicy) *rpc.GetConfigPolicyReply {
@@ -79,62 +99,74 @@ func newGetConfigPolicyReply(cfg ConfigPolicy) *rpc.GetConfigPolicyReply {
 
 	for k, v := range cfg.IntegerRules {
 		r := &rpc.IntegerRule{
-			Required:   v.Required,
-			Default:    v.Default,
-			HasDefault: v.HasDefault,
-			Minimum:    v.Minimum,
-			HasMin:     v.HasMin,
-			Maximum:    v.Maximum,
-			HasMax:     v.HasMax,
+			Required:   v.rule.Required,
+			Default:    v.rule.Default,
+			HasDefault: v.rule.HasDefault,
+			Minimum:    v.rule.Minimum,
+			HasMin:     v.rule.HasMin,
+			Maximum:    v.rule.Maximum,
+			HasMax:     v.rule.HasMax,
 		}
 
 		if ret.IntegerPolicy[k] == nil {
-			ret.IntegerPolicy[k] = &rpc.IntegerPolicy{Rules: map[string]*rpc.IntegerRule{}}
+			ret.IntegerPolicy[k] = &rpc.IntegerPolicy{
+				Rules: map[string]*rpc.IntegerRule{},
+				Key:   v.key,
+			}
 		}
-		ret.IntegerPolicy[k].Rules[v.Key] = r
+		ret.IntegerPolicy[k].Rules[v.rule.Key] = r
 	}
 
 	for k, v := range cfg.FloatRules {
 		r := &rpc.FloatRule{
-			Required:   v.Required,
-			Default:    v.Default,
-			HasDefault: v.HasDefault,
-			Minimum:    v.Minimum,
-			HasMin:     v.HasMin,
-			Maximum:    v.Maximum,
-			HasMax:     v.HasMax,
+			Required:   v.rule.Required,
+			Default:    v.rule.Default,
+			HasDefault: v.rule.HasDefault,
+			Minimum:    v.rule.Minimum,
+			HasMin:     v.rule.HasMin,
+			Maximum:    v.rule.Maximum,
+			HasMax:     v.rule.HasMax,
 		}
 
 		if ret.FloatPolicy[k] == nil {
-			ret.FloatPolicy[k] = &rpc.FloatPolicy{Rules: map[string]*rpc.FloatRule{}}
+			ret.FloatPolicy[k] = &rpc.FloatPolicy{
+				Rules: map[string]*rpc.FloatRule{},
+				Key:   v.key,
+			}
 		}
-		ret.FloatPolicy[k].Rules[v.Key] = r
+		ret.FloatPolicy[k].Rules[v.rule.Key] = r
 	}
 
 	for k, v := range cfg.StringRules {
 		r := &rpc.StringRule{
-			Required:   v.Required,
-			Default:    v.Default,
-			HasDefault: v.HasDefault,
+			Required:   v.rule.Required,
+			Default:    v.rule.Default,
+			HasDefault: v.rule.HasDefault,
 		}
 
 		if ret.StringPolicy[k] == nil {
-			ret.StringPolicy[k] = &rpc.StringPolicy{Rules: map[string]*rpc.StringRule{}}
+			ret.StringPolicy[k] = &rpc.StringPolicy{
+				Rules: map[string]*rpc.StringRule{},
+				Key:   v.key,
+			}
 		}
-		ret.StringPolicy[k].Rules[v.Key] = r
+		ret.StringPolicy[k].Rules[v.rule.Key] = r
 	}
 
 	for k, v := range cfg.BoolRules {
 		r := &rpc.BoolRule{
-			Required:   v.Required,
-			Default:    v.Default,
-			HasDefault: v.HasDefault,
+			Required:   v.rule.Required,
+			Default:    v.rule.Default,
+			HasDefault: v.rule.HasDefault,
 		}
 
 		if ret.BoolPolicy[k] == nil {
-			ret.BoolPolicy[k] = &rpc.BoolPolicy{Rules: map[string]*rpc.BoolRule{}}
+			ret.BoolPolicy[k] = &rpc.BoolPolicy{
+				Rules: map[string]*rpc.BoolRule{},
+				Key:   v.key,
+			}
 		}
-		ret.BoolPolicy[k].Rules[v.Key] = r
+		ret.BoolPolicy[k].Rules[v.rule.Key] = r
 	}
 
 	return ret
