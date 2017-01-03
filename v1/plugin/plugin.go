@@ -57,6 +57,30 @@ type Publisher interface {
 	Publish([]Metric, Config) error
 }
 
+type Streamer interface {
+	Plugin
+
+	StreamMetrics([]Metric) (<-chan []Metric, error)
+	GetMetricTypes(Config) ([]Metric, error)
+}
+
+// StartStreamer is given a Streamer implementation and its metadata,
+// generates a response for the initial stdin / stdout handshake, and starts
+// the plugin's gRPC server.
+func StartStreamer(plugin Streamer, name string, version int, opts ...MetaOpt) int {
+	getArgs()
+	opts = append(opts, rpcType(3))
+	m := newMeta(streamerType, name, version, opts...)
+	server := grpc.NewServer()
+	// TODO(danielscottt) SSL
+	proxy := &StreamProxy{
+		plugin:      plugin,
+		pluginProxy: *newPluginProxy(plugin),
+	}
+	rpc.RegisterStreamCollectorServer(server, proxy)
+	return startPlugin(server, m, &proxy.pluginProxy)
+}
+
 // StartCollector is given a Collector implementation and its metadata,
 // generates a response for the initial stdin / stdout handshake, and starts
 // the plugin's gRPC server.

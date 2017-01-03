@@ -72,12 +72,19 @@ func CacheTTL(t time.Duration) MetaOpt {
 	}
 }
 
+func rpcType(i int) MetaOpt {
+	return func(m *meta) {
+		m.RPCType = i
+	}
+}
+
 type pluginType int
 
 const (
 	collectorType pluginType = iota
 	processorType
 	publisherType
+	streamerType
 )
 
 // meta is the metadata for a plugin
