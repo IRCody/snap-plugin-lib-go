@@ -91,6 +91,26 @@ type Streamer interface {
 // generates a response for the initial stdin / stdout handshake, and starts
 // the plugin's gRPC server.
 func StartStreamer(plugin Streamer, name string, version int, opts ...MetaOpt) int {
+	result := 0
+	app.Action = func(c *cli.Context) error {
+		args = c.Args()
+		if c.Bool("service") {
+			fmt.Printf("start service on port %d", c.Uint("port"))
+			result = startStreamerService(plugin,
+				name,
+				version,
+				c.Uint("port"))
+		} else {
+			result = startStreamer(plugin, name, version, opts...)
+		}
+		return nil
+	}
+	app.Run(os.Args)
+	return result
+
+}
+
+func startStreamer(plugin Streamer, name string, version int, opts ...MetaOpt) int {
 	getArgs()
 	opts = append(opts, rpcType(3))
 	m := newMeta(streamerType, name, version, opts...)
@@ -102,6 +122,27 @@ func StartStreamer(plugin Streamer, name string, version int, opts ...MetaOpt) i
 	}
 	rpc.RegisterStreamCollectorServer(server, proxy)
 	return startPlugin(server, m, &proxy.pluginProxy)
+
+}
+
+func startStreamerService(plugin Streamer, name string, version int, port uint) int {
+	exitCode := make(chan int)
+	go func() {
+		exitCode <- startStreamer(plugin, name, version, Exclusive(true))
+	}()
+	pchan = make(chan []byte)
+	preamble := <-pchan
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, string(preamble))
+	})
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		panic("Unable to get open port")
+	}
+	defer l.Close()
+	stoppableListener, err := newListener(l)
+	http.Serve(stoppableListener, nil)
+	return <-exitCode
 }
 
 // startCollectoService
@@ -282,9 +323,10 @@ func startPlugin(srv server, m meta, p *pluginProxy) int {
 		// The preamble is provided to the http handler for plugin handshaking
 		// over http
 		pchan <- preambleJSON
+	} else {
+		fmt.Println(string(preambleJSON))
+		go p.HeartbeatWatch()
 	}
-	fmt.Println(string(preambleJSON))
-	go p.HeartbeatWatch()
 	// TODO(danielscottt): exit code
 	<-p.halt
 	fmt.Println("startPlugin is returning")
