@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin/rpc"
 	"google.golang.org/grpc"
@@ -55,6 +56,40 @@ type Publisher interface {
 	Plugin
 
 	Publish([]Metric, Config) error
+}
+
+// StreamCollector is a Collector that can send back metrics on it's own
+// defined interval (within configurable limits). These limits are set by the
+// SetMaxBuffer and SetMaxCollectionDuration funcs.
+//
+// SetMaxbuffer sets the maximum number of metrics the plugin should buffer
+// before sending metrics.
+//
+// SetMaxCollectionDuration sets the maximum duration between collections
+// before metrics should be sent (i.e.5s MaxCollectionDuration means that after
+// 5 seconds, the plugin should send whatever it has instead of waiting longer).
+type StreamCollector interface {
+	Plugin
+
+	// StreamMetrics allows the plugin to send/receive metrics on a channel
+	StreamMetrics(chan []Metric) (chan []Metric, error)
+	SetMaxBuffer(int64)
+	SetMaxCollectDuration(time.Duration)
+	SetConfig([]byte)
+	GetMetricTypes(Config) ([]Metric, error)
+}
+
+func StartStreamCollector(plugin StreamCollector, name string, version int, opts ...MetaOpt) int {
+	getArgs()
+	opts = append(opts, rpcType(gRPCStream))
+	m := newMeta(collectorType, name, version, opts...)
+	server := grpc.NewServer()
+	proxy := &StreamProxy{
+		plugin:      plugin,
+		pluginProxy: *newPluginProxy(plugin),
+	}
+	rpc.RegisterStreamCollectorServer(server, proxy)
+	return startPlugin(server, m, &proxy.pluginProxy)
 }
 
 // StartCollector is given a Collector implementation and its metadata,
