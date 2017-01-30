@@ -15,30 +15,59 @@ type StreamProxy struct {
 }
 
 func (c *StreamProxy) StreamMetrics(stream rpc.StreamCollector_StreamMetricsServer) error {
-
+	// Error channel where we will forward plugin errors to snap where it
+	// can report/handle them.
+	errChan := make(chan string)
+	// Metrics into the plugin from snap.
 	inChan := make(chan []Metric)
-	outChan, err := c.plugin.StreamMetrics(inChan)
+	// Metrics out of the plugin into snap.
+	outChan := make(chan []Metric)
+	err := c.plugin.StreamMetrics(inChan, outChan, errChan)
 	if err != nil {
 		return err
 	}
 	go streamRecv(c.plugin, inChan, stream)
-	for r := range outChan {
+	go metricSend(c.plugin, outChan, stream)
+	go errorSend(c.plugin, errChan, stream)
+	return nil
+}
+
+func errorSend(
+	plugin StreamCollector,
+	ch chan string,
+	s rpc.StreamCollector_StreamMetricsServer) {
+	for r := range ch {
+		reply := &rpc.CollectReply{
+			Error: &rpc.ErrReply{Error: r},
+		}
+		if err := s.Send(reply); err != nil {
+			//TODO(CDR): Log this error
+		}
+
+	}
+}
+
+func metricSend(
+	plugin StreamCollector,
+	ch chan []Metric,
+	s rpc.StreamCollector_StreamMetricsServer) {
+	for r := range ch {
 		mts := []*rpc.Metric{}
 		for _, mt := range r {
 			metric, err := toProtoMetric(mt)
 			if err != nil {
-				return err
+				//TODO(CDR): Log this error)
 			}
 			mts = append(mts, metric)
 		}
 		reply := &rpc.CollectReply{
 			Metrics_Reply: &rpc.MetricsReply{Metrics: mts},
 		}
-		if err := stream.Send(reply); err != nil {
-			return err
+		if err := s.Send(reply); err != nil {
+			//TODO(CDR): Log this error
 		}
 	}
-	return nil
+
 }
 
 func streamRecv(

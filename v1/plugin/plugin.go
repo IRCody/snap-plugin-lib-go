@@ -61,20 +61,30 @@ type Publisher interface {
 // StreamCollector is a Collector that can send back metrics on it's own
 // defined interval (within configurable limits). These limits are set by the
 // SetMaxBuffer and SetMaxCollectionDuration funcs.
-//
-// SetMaxbuffer sets the maximum number of metrics the plugin should buffer
-// before sending metrics.
-//
-// SetMaxCollectionDuration sets the maximum duration between collections
-// before metrics should be sent (i.e.5s MaxCollectionDuration means that after
-// 5 seconds, the plugin should send whatever it has instead of waiting longer).
 type StreamCollector interface {
 	Plugin
 
 	// StreamMetrics allows the plugin to send/receive metrics on a channel
-	StreamMetrics(chan []Metric) (chan []Metric, error)
+	// Arguments are (in order):
+	//
+	// A channel for metrics into the plugin from Snap -- which
+	// are the metric types snap is requesting the plugin to collect.
+	//
+	// A channel for metrics from the plugin to Snap -- the actual
+	// collected metrics from the plugin.
+	//
+	// A channel for error strings that the library will report to snap
+	// as task errors.
+	StreamMetrics(chan []Metric, chan []Metric, chan string) error
+	// SetMaxbuffer sets the maximum number of metrics the plugin should buffer
+	// before sending metrics.
 	SetMaxBuffer(int64)
+	// SetMaxCollectionDuration sets the maximum duration between collections
+	// before metrics should be sent (i.e.5s MaxCollectionDuration means that after
+	// 5 seconds, the plugin should send whatever it has instead of waiting longer).
 	SetMaxCollectDuration(time.Duration)
+	// Sets plugin specific config. Snap doesn't know/inspect what is
+	// inside these bytes.
 	SetConfig([]byte)
 	GetMetricTypes(Config) ([]Metric, error)
 }
