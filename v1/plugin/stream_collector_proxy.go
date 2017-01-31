@@ -26,9 +26,9 @@ func (c *StreamProxy) StreamMetrics(stream rpc.StreamCollector_StreamMetricsServ
 	if err != nil {
 		return err
 	}
-	go streamRecv(c.plugin, inChan, stream)
 	go metricSend(c.plugin, outChan, stream)
 	go errorSend(c.plugin, errChan, stream)
+	streamRecv(c.plugin, inChan, stream)
 	return nil
 }
 
