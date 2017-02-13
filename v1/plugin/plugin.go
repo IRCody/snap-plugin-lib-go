@@ -83,9 +83,6 @@ type StreamCollector interface {
 	// before metrics should be sent (i.e.5s MaxCollectionDuration means that after
 	// 5 seconds, the plugin should send whatever it has instead of waiting longer).
 	SetMaxCollectDuration(time.Duration)
-	// Sets plugin specific config. Snap doesn't know/inspect what is
-	// inside these bytes.
-	SetConfig([]byte)
 	GetMetricTypes(Config) ([]Metric, error)
 }
 

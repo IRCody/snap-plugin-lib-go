@@ -82,9 +82,12 @@ func streamRecv(
 			return
 		}
 		if s != nil {
-			plugin.SetMaxBuffer(s.MaxMetricsBuffer)
-			plugin.SetMaxCollectDuration(time.Duration(s.MaxCollectDuration))
-			plugin.SetConfig(s.Other)
+			if s.MaxMetricsBuffer != 0 {
+				plugin.SetMaxBuffer(s.MaxMetricsBuffer)
+			}
+			if s.MaxCollectDuration != 0 {
+				plugin.SetMaxCollectDuration(time.Duration(s.MaxCollectDuration))
+			}
 			if s.Metrics_Arg != nil {
 				metrics := []Metric{}
 				for _, mt := range s.Metrics_Arg.Metrics {

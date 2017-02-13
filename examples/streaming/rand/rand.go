@@ -87,11 +87,13 @@ func (r *RandCollector) drainMetrics(in chan []plugin.Metric) {
 	}
 }
 
-func (r *RandCollector) SetConfig([]byte) {}
+func (r *RandCollector) SetMaxCollectDuration(t time.Duration) {
+	fmt.Println("setting max collect duration to: ", t)
+}
 
-func (r *RandCollector) SetMaxCollectDuration(time.Duration) {}
-
-func (r *RandCollector) SetMaxBuffer(int64) {}
+func (r *RandCollector) SetMaxBuffer(i int64) {
+	fmt.Println("setting max buffer to : ", i)
+}
 
 func (r *RandCollector) streamIt(ch chan []plugin.Metric, err chan string) {
 	for {
