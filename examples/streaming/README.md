@@ -1,9 +1,9 @@
 
-## Snap Plugin Go Library: Collector Plugin Example
-Here you will find an example plugin that covers the basics for writing a collector plugin.
+## Snap Plugin Go Library: Stream Collector Plugin Example
+Here you will find an example plugin that covers the basics for writing a stream collector plugin.
 
 ## Plugin Naming, Files, and Directory
-For your collector plugin, create a new repository and name your plugin project using the following format:
+For your stream collector plugin, create a new repository and name your plugin project using the following format:
 
 >snap-plugin-[plugin-type]-[plugin-name]
 
@@ -44,13 +44,32 @@ In order to write a plugin for Snap, it is necessary to define a few methods to 
 type Plugin interface {
 	GetConfigPolicy() (ConfigPolicy, error)
 }
-
-// Collector is a plugin which is the source of new data in the Snap pipeline.
-type Collector interface {
+// StreamCollector is a Collector that can send back metrics on it's own
+// defined interval (within configurable limits). These limits are set by the
+// SetMaxBuffer and SetMaxCollectionDuration funcs.
+type StreamCollector interface {
 	Plugin
 
+	// StreamMetrics allows the plugin to send/receive metrics on a channel
+	// Arguments are (in order):
+	//
+	// A channel for metrics into the plugin from Snap -- which
+	// are the metric types snap is requesting the plugin to collect.
+	//
+	// A channel for metrics from the plugin to Snap -- the actual
+	// collected metrics from the plugin.
+	//
+	// A channel for error strings that the library will report to snap
+	// as task errors.
+	StreamMetrics(chan []Metric, chan []Metric, chan string) error
+	// SetMaxbuffer sets the maximum number of metrics the plugin should buffer
+	// before sending metrics.
+	SetMaxBuffer(int64)
+	// SetMaxCollectionDuration sets the maximum duration between collections
+	// before metrics should be sent (i.e.5s MaxCollectionDuration means that after
+	// 5 seconds, the plugin should send whatever it has instead of waiting longer).
+	SetMaxCollectDuration(time.Duration)
 	GetMetricTypes(Config) ([]Metric, error)
-	CollectMetrics([]Metric) ([]Metric, error)
 }
 ```
 The interface is slightly different depending on what type (collector, processor, or publisher) of plugin is being written. Please see other plugin types for more details.
@@ -62,7 +81,7 @@ The interface is slightly different depending on what type (collector, processor
 After implementing a type that satisfies one of {collector, processor, publisher} interfaces, all that is left to do is to call the appropriate plugin.StartX() with your plugin specific meta options. For example with no meta options specified:
 
 ```go
-	plugin.StartCollector(rand.RandCollector{}, pluginName, pluginVersion)
+	plugin.StartStreamCollector(rand.RandCollector{}, pluginName, pluginVersion)
 ```
 
 ### Meta options
