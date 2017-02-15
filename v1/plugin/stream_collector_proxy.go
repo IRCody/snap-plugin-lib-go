@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"fmt"
 	"time"
 
 	"golang.org/x/net/context"
@@ -41,7 +42,7 @@ func errorSend(
 			Error: &rpc.ErrReply{Error: r},
 		}
 		if err := s.Send(reply); err != nil {
-			//TODO(CDR): Log this error
+			fmt.Println(err.Error())
 		}
 
 	}
@@ -56,7 +57,7 @@ func metricSend(
 		for _, mt := range r {
 			metric, err := toProtoMetric(mt)
 			if err != nil {
-				//TODO(CDR): Log this error)
+				fmt.Println(err.Error())
 			}
 			mts = append(mts, metric)
 		}
@@ -64,7 +65,7 @@ func metricSend(
 			Metrics_Reply: &rpc.MetricsReply{Metrics: mts},
 		}
 		if err := s.Send(reply); err != nil {
-			//TODO(CDR): Log this error
+			fmt.Println(err.Error())
 		}
 	}
 
@@ -78,7 +79,6 @@ func streamRecv(
 	for {
 		s, err := s.Recv()
 		if err != nil {
-			// TODO(CDR):handle this error
 			return
 		}
 		if s != nil {
